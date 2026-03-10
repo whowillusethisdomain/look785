@@ -1,4 +1,310 @@
-@echo off
-:loop
-taskkill -F -IM ClassM_Client_Service.exe -T
-goto loop
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>명령어 공유 사이트</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f5f7fb;
+      color: #222;
+    }
+
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 20px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+
+    header p {
+      margin: 8px 0 0;
+      color: #666;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 0 16px 40px;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 90px;
+      font-family: Consolas, monospace;
+    }
+
+    .btn {
+      border: none;
+      background: #111827;
+      color: white;
+      padding: 11px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: 0.2s;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .btn.secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .command-item {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 14px;
+      background: #fcfcfd;
+    }
+
+    .command-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .command-desc {
+      color: #555;
+      margin-bottom: 12px;
+      white-space: pre-wrap;
+    }
+
+    pre {
+      background: #111827;
+      color: #f9fafb;
+      padding: 14px;
+      border-radius: 10px;
+      overflow-x: auto;
+      font-size: 14px;
+      margin: 0 0 12px;
+    }
+
+    .command-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .empty {
+      text-align: center;
+      color: #777;
+      padding: 20px 0;
+    }
+
+    .search-box {
+      margin-bottom: 16px;
+    }
+
+    .footer {
+      text-align: center;
+      color: #777;
+      font-size: 13px;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>명령어 공유 사이트</h1>
+    <p>자주 쓰는 명령어를 저장하고 복사해보세요</p>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <h2>명령어 등록</h2>
+
+      <div class="form-group">
+        <label for="title">제목</label>
+        <input type="text" id="title" placeholder="예: 프로세스 강제 종료 명령어" />
+      </div>
+
+      <div class="form-group">
+        <label for="description">설명</label>
+        <input type="text" id="description" placeholder="예: 특정 프로그램을 강제로 종료하는 명령어" />
+      </div>
+
+      <div class="form-group">
+        <label for="command">명령어</label>
+        <textarea id="command" placeholder="예: taskkill /F /IM notepad.exe"></textarea>
+      </div>
+
+      <div class="top-actions">
+        <button class="btn" onclick="addCommand()">등록하기</button>
+        <button class="btn secondary" onclick="addSample()">예시 추가</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>명령어 목록</h2>
+
+      <div class="search-box">
+        <input
+          type="text"
+          id="search"
+          placeholder="제목, 설명, 명령어 검색"
+          oninput="renderCommands()"
+        />
+      </div>
+
+      <div id="commandList"></div>
+    </div>
+
+    <div class="footer">
+      간단한 로컬 저장 기반 사이트
+    </div>
+  </div>
+
+  <script>
+    let commands = JSON.parse(localStorage.getItem("sharedCommands")) || [];
+
+    function saveCommands() {
+      localStorage.setItem("sharedCommands", JSON.stringify(commands));
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.innerText = text;
+      return div.innerHTML;
+    }
+
+    function addCommand() {
+      const title = document.getElementById("title").value.trim();
+      const description = document.getElementById("description").value.trim();
+      const command = document.getElementById("command").value.trim();
+
+      if (!title || !command) {
+        alert("제목과 명령어는 꼭 입력해야 합니다.");
+        return;
+      }
+
+      commands.unshift({
+        id: Date.now(),
+        title,
+        description,
+        command
+      });
+
+      saveCommands();
+      renderCommands();
+
+      document.getElementById("title").value = "";
+      document.getElementById("description").value = "";
+      document.getElementById("command").value = "";
+    }
+
+    function deleteCommand(id) {
+      if (!confirm("이 명령어를 삭제할까요?")) return;
+      commands = commands.filter(item => item.id !== id);
+      saveCommands();
+      renderCommands();
+    }
+
+    function copyCommand(command) {
+      navigator.clipboard.writeText(command)
+        .then(() => alert("명령어가 복사되었습니다!"))
+        .catch(() => alert("복사에 실패했습니다."));
+    }
+
+    function addSample() {
+      const sample = {
+        id: Date.now(),
+        title: "예시 명령어",
+        description: "테스트용으로 추가된 예시입니다.",
+        command: "echo Hello World"
+      };
+
+      commands.unshift(sample);
+      saveCommands();
+      renderCommands();
+    }
+
+    function renderCommands() {
+      const list = document.getElementById("commandList");
+      const keyword = document.getElementById("search").value.toLowerCase().trim();
+
+      const filtered = commands.filter(item =>
+        item.title.toLowerCase().includes(keyword) ||
+        item.description.toLowerCase().includes(keyword) ||
+        item.command.toLowerCase().includes(keyword)
+      );
+
+      if (filtered.length === 0) {
+        list.innerHTML = '<div class="empty">등록된 명령어가 없습니다.</div>';
+        return;
+      }
+
+      list.innerHTML = filtered.map(item => `
+        <div class="command-item">
+          <div class="command-title">${escapeHtml(item.title)}</div>
+          <div class="command-desc">${escapeHtml(item.description || "설명 없음")}</div>
+          <pre><code>${escapeHtml(item.command)}</code></pre>
+          <div class="command-actions">
+            <button class="btn" onclick='copyCommand(${JSON.stringify(item.command)})'>복사</button>
+            <button class="btn secondary" onclick="deleteCommand(${item.id})">삭제</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    renderCommands();
+  </script>
+</body>
+</html>
